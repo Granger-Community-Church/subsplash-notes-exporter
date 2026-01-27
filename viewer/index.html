@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subsplash Notes Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .nav {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-item {
+            color: #666;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            color: #333;
+        }
+
+        .nav-item.active {
+            color: #333;
+            border-bottom-color: #4285f4;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .collections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .collection-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e0e0e0;
+        }
+
+        .collection-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .collection-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .collection-card-count {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .stats {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .search-box {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .filter-select {
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+            background: white;
+        }
+
+        .date-input {
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .date-filter-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .date-filter-label {
+            font-size: 14px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .view-toggle-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .view-toggle-btn:hover {
+            background: #e8e8e8;
+        }
+
+        .view-toggle-btn.active {
+            background: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+
+        .view-toggle-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .raw-markdown {
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #3367d6;
+        }
+
+        .copy-btn.copied {
+            background: #34a853;
+        }
+
+        .notes-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        th {
+            text-align: left;
+            padding: 16px 24px;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+        }
+
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .note-title {
+            color: #4285f4;
+            font-weight: 500;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .note-title:hover {
+            text-decoration: underline;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+        }
+
+        .collection-badge {
+            background: #e8e8e8;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .modal-title-section {
+            flex: 1;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .close-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .modal-body {
+            padding: 24px;
+            line-height: 1.6;
+            min-height: 200px;
+        }
+
+        .modal-body:empty::after {
+            content: "Loading content...";
+            color: #999;
+            font-style: italic;
+        }
+
+        .modal-body h1, .modal-body h2, .modal-body h3 {
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        .modal-body p {
+            margin-bottom: 16px;
+        }
+
+        .modal-body ul, .modal-body ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+
+        .modal-body blockquote {
+            border-left: 4px solid #4285f4;
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #666;
+        }
+
+        .modal-body code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .modal-body pre {
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .modal-body hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 24px 0;
+        }
+
+        .modal-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 48px 24px;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px 24px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .filters-row {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .filter-select, .date-input {
+                width: 100%;
+            }
+
+            .date-filter-group {
+                width: 100%;
+            }
+
+            .view-toggle-group {
+                flex-wrap: wrap;
+            }
+
+            .copy-btn {
+                margin-left: 0 !important;
+                width: 100%;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 12px 16px;
+            }
+
+            .collection-col {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Notes Browser</div>
+        <nav class="nav">
+            <span class="nav-item active" id="pagesTab">Pages</span>
+            <span class="nav-item" id="collectionsTab">Collections</span>
+        </nav>
+    </div>
+
+    <div class="container">
+        <!-- Pages View -->
+        <div id="pagesView" class="view active">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Pages</h1>
+                    <div class="stats" id="stats">Loading...</div>
+                </div>
+            </div>
+
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="Search notes...">
+        </div>
+
+        <div class="filters-row" style="margin-top: 16px;">
+            <select class="filter-select" id="collectionFilter">
+                <option value="">All Collections</option>
+            </select>
+            <select class="filter-select" id="speakerFilter">
+                <option value="">All Speakers</option>
+            </select>
+        </div>
+
+        <div class="filters-row" style="margin-top: 16px;">
+            <div class="date-filter-group">
+                <span class="date-filter-label">Date Range:</span>
+                <input type="date" class="date-input" id="startDate">
+                <span class="date-filter-label">to</span>
+                <input type="date" class="date-input" id="endDate">
+            </div>
+        </div>
+
+        <div class="notes-table">
+            <div id="loadingState" class="loading">
+                Loading notes...
+            </div>
+            <table id="notesTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>TITLE</th>
+                        <th class="collection-col">COLLECTION</th>
+                        <th>PUBLISHED</th>
+                    </tr>
+                </thead>
+                <tbody id="notesBody">
+                </tbody>
+            </table>
+            <div id="noResults" class="no-results" style="display: none;">
+                No notes found matching your search.
+            </div>
+        </div>
+        </div>
+        <!-- End Pages View -->
+
+        <!-- Collections View -->
+        <div id="collectionsView" class="view">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Collections</h1>
+                    <div class="stats" id="collectionsStats">Loading...</div>
+                </div>
+            </div>
+
+            <div class="collections-grid" id="collectionsGrid">
+            </div>
+        </div>
+        <!-- End Collections View -->
+    </div>
+
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-section">
+                    <h2 class="modal-title" id="modalTitle">Note Title</h2>
+                    <div class="modal-subtitle" id="modalSubtitle"></div>
+                    <div class="modal-meta">
+                        <span id="modalAuthor"></span>
+                        <span id="modalCollection"></span>
+                    </div>
+                </div>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div style="padding: 16px 24px 0 24px;">
+                <div class="view-toggle-group">
+                    <button class="view-toggle-btn active" id="renderedViewBtn">Rendered</button>
+                    <button class="view-toggle-btn" id="rawViewBtn">Raw Markdown</button>
+                    <button class="copy-btn" id="copyMarkdownBtn" style="margin-left: auto;">Copy Markdown</button>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+            <div class="modal-body" id="modalBodyRaw" style="display: none;">
+                <pre class="raw-markdown" id="rawMarkdown"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allNotes = [];
+        let filteredNotes = [];
+        let allCollections = [];
+
+        // Configure marked.js if available
+        if (typeof marked !== 'undefined' && marked.setOptions) {
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        // Load notes index
+        async function loadNotes() {
+            try {
+                const response = await fetch('notes_index.json');
+                const data = await response.json();
+
+                allNotes = data.notes;
+                filteredNotes = allNotes;
+                allCollections = data.collections;
+
+                // Update stats
+                document.getElementById('stats').textContent =
+                    `${data.total_notes} notes across ${data.total_collections} collections`;
+
+                // Populate collection filter
+                const collectionFilter = document.getElementById('collectionFilter');
+                data.collections
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .forEach(collection => {
+                        const option = document.createElement('option');
+                        option.value = collection.name;
+                        option.textContent = `${collection.name} (${collection.count})`;
+                        collectionFilter.appendChild(option);
+                    });
+
+                // Render collections view
+                renderCollections(allCollections);
+
+                // Populate speaker filter
+                const speakers = {};
+                allNotes.forEach(note => {
+                    const author = note.author || '';
+                    if (author) {
+                        speakers[author] = (speakers[author] || 0) + 1;
+                    }
+                });
+
+                const speakerFilter = document.getElementById('speakerFilter');
+                Object.keys(speakers)
+                    .sort()
+                    .forEach(speaker => {
+                        const option = document.createElement('option');
+                        option.value = speaker;
+                        option.textContent = `${speaker} (${speakers[speaker]})`;
+                        speakerFilter.appendChild(option);
+                    });
+
+                renderNotes();
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                document.getElementById('loadingState').textContent =
+                    'Error loading notes. Please refresh the page.';
+            }
+        }
+
+        // Render notes table
+        function renderNotes() {
+            const tbody = document.getElementById('notesBody');
+            const table = document.getElementById('notesTable');
+            const loading = document.getElementById('loadingState');
+            const noResults = document.getElementById('noResults');
+
+            tbody.innerHTML = '';
+
+            if (filteredNotes.length === 0) {
+                table.style.display = 'none';
+                loading.style.display = 'none';
+                noResults.style.display = 'block';
+                return;
+            }
+
+            table.style.display = 'table';
+            loading.style.display = 'none';
+            noResults.style.display = 'none';
+
+            filteredNotes.forEach(note => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => openNote(note);
+
+                const titleCell = document.createElement('td');
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'note-title';
+                titleDiv.innerHTML = `
+                    <span class="dot"></span>
+                    <span>${note.title}${note.subtitle ? ' — ' + note.subtitle : ''}</span>
+                `;
+                titleCell.appendChild(titleDiv);
+
+                const collectionCell = document.createElement('td');
+                collectionCell.className = 'collection-col';
+                collectionCell.innerHTML = `
+                    <span class="collection-badge">${note.collection}</span>
+                `;
+
+                const dateCell = document.createElement('td');
+                dateCell.textContent = formatDate(note.date || note.created);
+
+                tr.appendChild(titleCell);
+                tr.appendChild(collectionCell);
+                tr.appendChild(dateCell);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        // Open note in modal
+        async function openNote(note) {
+            const modal = document.getElementById('noteModal');
+            document.getElementById('modalTitle').textContent = note.title;
+            document.getElementById('modalSubtitle').textContent = note.subtitle || '';
+            document.getElementById('modalAuthor').textContent = note.author || '';
+            document.getElementById('modalCollection').textContent = note.collection;
+
+            try {
+                // Read content directly from note object (no fetch needed for static deployment)
+                let content = note.content || '';
+
+                // Store raw markdown for copy/raw view
+                currentRawMarkdown = content;
+                document.getElementById('rawMarkdown').textContent = content;
+
+                // Render markdown
+                let html;
+                try {
+                    // Try different Marked.js API versions
+                    if (typeof marked.parse === 'function') {
+                        html = marked.parse(content);
+                    } else if (typeof marked === 'function') {
+                        html = marked(content);
+                    } else {
+                        html = marked.marked(content);
+                    }
+                } catch (parseError) {
+                    console.error('Markdown parse error:', parseError);
+                    // Fallback: just use the raw content with line breaks
+                    html = '<pre>' + content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+                }
+
+                document.getElementById('modalBody').innerHTML = html;
+
+                // Reset to rendered view
+                document.getElementById('modalBody').style.display = 'block';
+                document.getElementById('modalBodyRaw').style.display = 'none';
+                document.getElementById('renderedViewBtn').classList.add('active');
+                document.getElementById('rawViewBtn').classList.remove('active');
+
+                modal.classList.add('active');
+            } catch (error) {
+                console.error('Error loading note:', error);
+                document.getElementById('modalBody').innerHTML =
+                    '<p>Error loading note content.</p>';
+                modal.classList.add('active');
+            }
+        }
+
+        // Close modal
+        document.getElementById('closeModal').onclick = () => {
+            document.getElementById('noteModal').classList.remove('active');
+        };
+
+        document.getElementById('noteModal').onclick = (e) => {
+            if (e.target.id === 'noteModal') {
+                document.getElementById('noteModal').classList.remove('active');
+            }
+        };
+
+        // Search functionality
+        document.getElementById('searchBox').addEventListener('input', (e) => {
+            filterNotes();
+        });
+
+        document.getElementById('collectionFilter').addEventListener('change', (e) => {
+            filterNotes();
+        });
+
+        document.getElementById('speakerFilter').addEventListener('change', (e) => {
+            filterNotes();
+        });
+
+        document.getElementById('startDate').addEventListener('change', (e) => {
+            filterNotes();
+        });
+
+        document.getElementById('endDate').addEventListener('change', (e) => {
+            filterNotes();
+        });
+
+        // View toggle functionality
+        let currentRawMarkdown = '';
+
+        document.getElementById('renderedViewBtn').addEventListener('click', () => {
+            document.getElementById('modalBody').style.display = 'block';
+            document.getElementById('modalBodyRaw').style.display = 'none';
+            document.getElementById('renderedViewBtn').classList.add('active');
+            document.getElementById('rawViewBtn').classList.remove('active');
+        });
+
+        document.getElementById('rawViewBtn').addEventListener('click', () => {
+            document.getElementById('modalBody').style.display = 'none';
+            document.getElementById('modalBodyRaw').style.display = 'block';
+            document.getElementById('renderedViewBtn').classList.remove('active');
+            document.getElementById('rawViewBtn').classList.add('active');
+        });
+
+        // Copy markdown functionality
+        document.getElementById('copyMarkdownBtn').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(currentRawMarkdown);
+                const btn = document.getElementById('copyMarkdownBtn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            }
+        });
+
+        function filterNotes() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const collection = document.getElementById('collectionFilter').value;
+            const speaker = document.getElementById('speakerFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            filteredNotes = allNotes.filter(note => {
+                // Search filter
+                const matchesSearch = !searchTerm ||
+                    note.title.toLowerCase().includes(searchTerm) ||
+                    note.subtitle.toLowerCase().includes(searchTerm) ||
+                    note.author.toLowerCase().includes(searchTerm) ||
+                    note.collection.toLowerCase().includes(searchTerm);
+
+                // Collection filter
+                const matchesCollection = !collection || note.collection === collection;
+
+                // Speaker filter
+                const matchesSpeaker = !speaker || note.author === speaker;
+
+                // Date filter
+                let matchesDate = true;
+                if (startDate || endDate) {
+                    const noteDate = note.date || note.created || '';
+                    if (noteDate) {
+                        const noteDateObj = new Date(noteDate);
+                        if (startDate) {
+                            const startDateObj = new Date(startDate);
+                            if (noteDateObj < startDateObj) matchesDate = false;
+                        }
+                        if (endDate) {
+                            const endDateObj = new Date(endDate);
+                            endDateObj.setHours(23, 59, 59, 999); // End of day
+                            if (noteDateObj > endDateObj) matchesDate = false;
+                        }
+                    }
+                }
+
+                return matchesSearch && matchesCollection && matchesSpeaker && matchesDate;
+            });
+
+            renderNotes();
+        }
+
+        // Navigation switching
+        document.getElementById('pagesTab').addEventListener('click', () => {
+            // Switch tabs
+            document.getElementById('pagesTab').classList.add('active');
+            document.getElementById('collectionsTab').classList.remove('active');
+
+            // Switch views
+            document.getElementById('pagesView').classList.add('active');
+            document.getElementById('collectionsView').classList.remove('active');
+        });
+
+        document.getElementById('collectionsTab').addEventListener('click', () => {
+            // Switch tabs
+            document.getElementById('pagesTab').classList.remove('active');
+            document.getElementById('collectionsTab').classList.add('active');
+
+            // Switch views
+            document.getElementById('pagesView').classList.remove('active');
+            document.getElementById('collectionsView').classList.add('active');
+        });
+
+        // Render collections grid
+        function renderCollections(collections) {
+            const grid = document.getElementById('collectionsGrid');
+            const statsDiv = document.getElementById('collectionsStats');
+
+            statsDiv.textContent = `${collections.length} collections`;
+
+            grid.innerHTML = '';
+
+            collections
+                .sort((a, b) => b.count - a.count) // Sort by count descending
+                .forEach(collection => {
+                    const card = document.createElement('div');
+                    card.className = 'collection-card';
+                    card.onclick = () => {
+                        // Switch to pages view and filter by this collection
+                        document.getElementById('pagesTab').click();
+                        document.getElementById('collectionFilter').value = collection.name;
+                        filterNotes();
+                    };
+
+                    card.innerHTML = `
+                        <div class="collection-card-title">${collection.name}</div>
+                        <div class="collection-card-count">${collection.count} note${collection.count !== 1 ? 's' : ''}</div>
+                    `;
+
+                    grid.appendChild(card);
+                });
+        }
+
+        // Load notes on page load
+        loadNotes();
+    </script>
+</body>
+</html>
