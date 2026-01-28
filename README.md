@@ -64,6 +64,16 @@ Follow the prompts to:
 
 After exporting, you can use the included web viewer to browse your notes:
 
+**Quick Launch (Recommended):**
+```bash
+# One-step launcher (generates index + starts viewer)
+python view_notes.py
+
+# Or on Windows, double-click:
+view_notes.bat
+```
+
+**Manual Steps:**
 ```bash
 # Generate the index for the viewer
 python generate_index.py
